@@ -1,15 +1,15 @@
-import { ApiPromise } from '@polkadot/api'
-import { HexString } from '@polkadot/util/types'
-import { Like } from 'typeorm'
-import { ProviderInterface } from '@polkadot/rpc-provider/types'
-import { SqliteDatabase } from '@acala-network/chopsticks-db'
-import { WsProvider } from '@polkadot/rpc-provider'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
+import { SqliteDatabase } from '@acala-network/chopsticks-db'
+import { ApiPromise } from '@polkadot/api'
+import { WsProvider } from '@polkadot/rpc-provider'
+import type { ProviderInterface } from '@polkadot/rpc-provider/types'
 import { xxhashAsHex } from '@polkadot/util-crypto'
+import type { HexString } from '@polkadot/util/types'
+import { Like } from 'typeorm'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { FetchStorageConfig, fetchStorages, getPrefixesFromConfig } from './fetch-storages.js'
+import { type FetchStorageConfig, fetchStorages, getPrefixesFromConfig } from './fetch-storages.js'
 
 describe('fetch-storages', () => {
   let api: ApiPromise
@@ -18,7 +18,7 @@ describe('fetch-storages', () => {
 
   beforeAll(async () => {
     provider = new WsProvider(endpoint, 30_000)
-    api = new ApiPromise({ provider })
+    api = new ApiPromise({ provider, noInitWarn: true })
     await api.isReady
   })
 
@@ -77,13 +77,13 @@ describe('fetch-storages', () => {
   })
 
   it('get prefixes from config throws', async () => {
-    expect(() => getPrefixesFromConfig(['Balancess'], api)).rejects.toThrow(/Cannot find pallet Balancess/)
+    await expect(() => getPrefixesFromConfig(['Balancess'], api)).rejects.toThrow(/Cannot find pallet Balancess/)
 
-    expect(() => getPrefixesFromConfig(['System.Acount'], api)).rejects.toThrow(
+    await expect(() => getPrefixesFromConfig(['System.Acount'], api)).rejects.toThrow(
       /Cannot find storage Acount in pallet System/,
     )
 
-    expect(() =>
+    await expect(() =>
       getPrefixesFromConfig(
         [
           {

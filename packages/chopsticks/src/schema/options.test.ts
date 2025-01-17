@@ -1,9 +1,15 @@
-import { configSchema, getYargsOptions } from './index.js'
 import { expect, it } from 'vitest'
+import { configSchema, getYargsOptions } from './index.js'
 
 it('get yargs options from zod schema', () => {
   expect(getYargsOptions(configSchema.shape)).toMatchInlineSnapshot(`
     {
+      "addr": {
+        "choices": undefined,
+        "demandOption": false,
+        "description": undefined,
+        "type": "string",
+      },
       "allow-unresolved-imports": {
         "choices": undefined,
         "demandOption": false,
@@ -26,6 +32,12 @@ it('get yargs options from zod schema', () => {
         "description": undefined,
         "type": undefined,
       },
+      "chain-spec": {
+        "choices": undefined,
+        "demandOption": false,
+        "description": "URL to chain spec file. NOTE: Only parachains with AURA consensus are supported!",
+        "type": "string",
+      },
       "db": {
         "choices": undefined,
         "demandOption": false,
@@ -41,7 +53,13 @@ it('get yargs options from zod schema', () => {
       "genesis": {
         "choices": undefined,
         "demandOption": false,
-        "description": "URL to genesis config file. NOTE: Only parachains with AURA consensus are supported!",
+        "description": "Alias to \`chain-spec\`. URL to chain spec file. NOTE: Only parachains with AURA consensus are supported!",
+        "type": "string",
+      },
+      "host": {
+        "choices": undefined,
+        "demandOption": false,
+        "description": "Server listening interface",
         "type": "string",
       },
       "import-storage": {
@@ -71,7 +89,7 @@ it('get yargs options from zod schema', () => {
       "port": {
         "choices": undefined,
         "demandOption": false,
-        "description": "Port to listen on",
+        "description": "Server listening port",
         "type": "number",
       },
       "prefetch-storages": {

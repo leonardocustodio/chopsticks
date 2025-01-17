@@ -32,15 +32,17 @@ describe.runIf(process.env.CI || process.env.RUN_ALL).each([
   { chain: 'Westmint', endpoint: 'wss://westmint-rpc.polkadot.io' },
   { chain: 'Westend Collectives', endpoint: 'wss://sys.ibp.network/collectives-westend' },
 ])('Latest $chain can build blocks', async ({ endpoint, storage }) => {
-  const { setup, teardownAll } = await setupAll({ endpoint })
+  const { setupPjs, teardownAll } = await setupAll({ endpoint })
 
   afterAll(async () => {
     await teardownAll()
   })
 
   it('build blocks', { timeout: 300_000, retry: 1 }, async () => {
-    const { chain, ws, teardown } = await setup()
-    storage && (await ws.send('dev_setStorage', [storage]))
+    const { chain, ws, teardown } = await setupPjs()
+    if (storage) {
+      await ws.send('dev_setStorage', [storage])
+    }
     const blockNumber = chain.head.number
     await ws.send('dev_newBlock', [{ count: 2 }])
     expect(chain.head.number).eq(blockNumber + 2)
@@ -48,8 +50,10 @@ describe.runIf(process.env.CI || process.env.RUN_ALL).each([
   })
 
   it('build block using unsafeBlockHeight', async () => {
-    const { chain, ws, teardown } = await setup()
-    storage && (await ws.send('dev_setStorage', [storage]))
+    const { chain, ws, teardown } = await setupPjs()
+    if (storage) {
+      await ws.send('dev_setStorage', [storage])
+    }
     const blockNumber = chain.head.number
     const unsafeBlockHeight = blockNumber + 100
 

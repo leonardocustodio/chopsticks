@@ -1,8 +1,8 @@
-import { HexString } from '@polkadot/util/types'
-import { HrmpChannelId } from '@polkadot/types/interfaces'
+import type { u32 } from '@polkadot/types'
+import type { HrmpChannelId } from '@polkadot/types/interfaces'
 import { hexToU8a, u8aConcat, u8aToHex } from '@polkadot/util'
-import { u32 } from '@polkadot/types'
 import { xxhashAsU8a } from '@polkadot/util-crypto'
+import type { HexString } from '@polkadot/util/types'
 
 export const WELL_KNOWN_KEYS = {
   EPOCH_INDEX: '0x1cb6f36e027abb2091cfb5110ab5087f38316cbf8fa0da822a20ac1c55bf1be3' as HexString,
@@ -24,6 +24,11 @@ export const dmqMqcHead = (paraId: u32) => {
 
 export const upgradeGoAheadSignal = (paraId: u32) => {
   const prefix = '0xcd710b30bd2eab0352ddcc26417aa1949e94c040f5e73d9b7addd6cb603d15d3'
+  return hash(prefix, paraId.toU8a())
+}
+
+export const upgradeRestrictionSignal = (paraId: u32) => {
+  const prefix = '0xcd710b30bd2eab0352ddcc26417aa194f27bbb460270642b5bcaf032ea04d56a'
   return hash(prefix, paraId.toU8a())
 }
 

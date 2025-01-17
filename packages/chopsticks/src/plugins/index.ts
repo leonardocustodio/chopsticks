@@ -1,10 +1,10 @@
-import { Handlers, environment } from '@acala-network/chopsticks-core'
-import { lstatSync, readFileSync, readdirSync } from 'fs'
+import { lstatSync, readFileSync, readdirSync } from 'node:fs'
+import { type Handlers, environment } from '@acala-network/chopsticks-core'
 import _ from 'lodash'
 import type { Argv } from 'yargs'
 
+import { resolve } from 'node:path'
 import { defaultLogger } from '../logger.js'
-import { resolve } from 'path'
 
 const logger = defaultLogger.child({ name: 'plugin' })
 
@@ -50,7 +50,7 @@ export const loadRpcMethodsByScripts = async (path: string) => {
     rpcScriptMethods = new Function(scriptContent)()
     logger.info(`${Object.keys(rpcScriptMethods).length} extension rpc methods loaded from ${path}`)
   } catch (error) {
-    console.log('Failed to load rpc extension methods')
+    console.log('Failed to load rpc extension methods', error)
   }
 }
 

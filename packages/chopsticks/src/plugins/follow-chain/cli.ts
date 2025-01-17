@@ -1,14 +1,14 @@
 import { Block, defaultLogger, runTask, taskHandler } from '@acala-network/chopsticks-core'
-import { Header } from '@polkadot/types/interfaces'
-import { HexString } from '@polkadot/util/types'
-import { z } from 'zod'
+import type { Header } from '@polkadot/types/interfaces'
+import type { HexString } from '@polkadot/util/types'
 import _ from 'lodash'
 import type { Argv } from 'yargs'
+import { z } from 'zod'
 
+import { setupContext } from '../../context.js'
+import { handler } from '../../rpc/index.js'
 import { configSchema, getYargsOptions } from '../../schema/index.js'
 import { createServer } from '../../server.js'
-import { handler } from '../../rpc/index.js'
-import { setupContext } from '../../context.js'
 
 const logger = defaultLogger.child({ name: 'follow-chain' })
 
@@ -29,17 +29,16 @@ export const cli = (y: Argv) => {
     (yargs) => yargs.options(getYargsOptions(schema.shape)),
     async (argv) => {
       const config = schema.parse(argv)
-      Array.isArray(config.endpoint)
-        ? config.endpoint
-        : [config.endpoint || ''].forEach((endpoint) => {
-            if (/^(https|http):\/\//.test(endpoint)) {
-              throw Error('http provider is not supported')
-            }
-          })
+      const endpoints = Array.isArray(config.endpoint) ? config.endpoint : [config.endpoint ?? '']
+      for (const endpoint of endpoints) {
+        if (/^(https|http):\/\//.test(endpoint)) {
+          throw Error('http provider is not supported')
+        }
+      }
 
       const context = await setupContext(config, true)
-      const { close, port: listenPort } = await createServer(handler(context), config.port)
-      logger.info(`${await context.chain.api.getSystemChain()} RPC listening on port ${listenPort}`)
+      const { close, addr } = await createServer(handler(context), config.port, config.host)
+      logger.info(`${await context.chain.api.getSystemChain()} RPC listening on http://${addr} and ws://${addr}`)
 
       const chain = context.chain
 

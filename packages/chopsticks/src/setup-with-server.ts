@@ -1,19 +1,22 @@
-import { Config } from './schema/index.js'
-import { createServer } from './server.js'
 import { defaultLogger } from '@acala-network/chopsticks-core'
-import { handler } from './rpc/index.js'
 import { setupContext } from './context.js'
+import { handler } from './rpc/index.js'
+import type { Config } from './schema/index.js'
+import { createServer } from './server.js'
 
 export const setupWithServer = async (argv: Config) => {
+  if (argv.addr) {
+    defaultLogger.warn({}, `⚠️ Option --addr is deprecated, please use --host instead.`)
+    argv.host ??= argv.addr
+  }
   const context = await setupContext(argv)
 
-  const { close, port: listenPort } = await createServer(handler(context), argv.port)
-
-  defaultLogger.info(`${await context.chain.api.getSystemChain()} RPC listening on port ${listenPort}`)
+  const { close, addr } = await createServer(handler(context), argv.port, argv.host)
+  defaultLogger.info(`${await context.chain.api.getSystemChain()} RPC listening on http://${addr} and ws://${addr}`)
 
   return {
     ...context,
-    listenPort,
+    addr,
     async close() {
       await context.chain.close()
       await context.fetchStorageWorker?.terminate()

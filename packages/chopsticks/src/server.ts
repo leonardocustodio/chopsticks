@@ -1,7 +1,7 @@
-import { AddressInfo, WebSocket, WebSocketServer } from 'ws'
-import { ResponseError, SubscriptionManager } from '@acala-network/chopsticks-core'
-import { z } from 'zod'
 import http from 'node:http'
+import { ResponseError, type SubscriptionManager } from '@acala-network/chopsticks-core'
+import { type AddressInfo, WebSocket, WebSocketServer } from 'ws'
+import { z } from 'zod'
 
 import { defaultLogger, truncate } from './logger.js'
 
@@ -9,7 +9,7 @@ const httpLogger = defaultLogger.child({ name: 'http' })
 const wsLogger = defaultLogger.child({ name: 'ws' })
 
 const singleRequest = z.object({
-  id: z.number(),
+  id: z.optional(z.union([z.number().int(), z.string(), z.null()])),
   jsonrpc: z.literal('2.0'),
   method: z.string(),
   params: z.array(z.any()).default([]),
@@ -27,7 +27,7 @@ export type Handler = (
 const parseRequest = (request: string) => {
   try {
     return JSON.parse(request)
-  } catch (e) {
+  } catch (_e) {
     return undefined
   }
 }
@@ -57,7 +57,7 @@ const respond = (res: http.ServerResponse, data?: any) => {
   res.end()
 }
 
-const portInUse = async (port: number) => {
+const portInUse = async (port: number, host?: string) => {
   const server = http.createServer()
   const inUse = await new Promise<boolean>((resolve) => {
     server.once('error', (e: any) => {
@@ -71,16 +71,17 @@ const portInUse = async (port: number) => {
       server.close()
       resolve(false)
     })
-    server.listen(port)
+    server.listen(port, host)
   })
   server.removeAllListeners()
   server.unref()
+  await new Promise((r) => setTimeout(r, 50))
   return inUse
 }
 
-export const createServer = async (handler: Handler, port: number) => {
+export const createServer = async (handler: Handler, port: number, host?: string) => {
   let wss: WebSocketServer | undefined
-  let listenPort: number | undefined
+  let addressInfo: AddressInfo | undefined
 
   const emptySubscriptionManager = {
     subscribe: () => {
@@ -89,6 +90,21 @@ export const createServer = async (handler: Handler, port: number) => {
     unsubscribe: () => {
       throw new Error('Subscription is not supported')
     },
+  }
+
+  const safeHandleRequest = async (request: z.infer<typeof singleRequest>) => {
+    try {
+      const result = await handler(request, emptySubscriptionManager)
+      return request.id === undefined ? undefined : { id: request.id, jsonrpc: '2.0', result }
+    } catch (err: any) {
+      return {
+        jsonrpc: '2.0',
+        id: request.id,
+        error: {
+          message: err.message,
+        },
+      }
+    }
   }
 
   const server = http.createServer(async (req, res) => {
@@ -105,31 +121,28 @@ export const createServer = async (handler: Handler, port: number) => {
 
       if (!parsed.success) {
         httpLogger.error('Invalid request: %s', body)
-        throw new Error('Invalid request: ' + body)
+        throw new Error(`Invalid request: ${body}`)
       }
 
       httpLogger.trace({ req: parsed.data }, 'Received request')
 
       let response: any
       if (Array.isArray(parsed.data)) {
-        response = await Promise.all(
-          parsed.data.map((req) => {
-            const result = handler(req, emptySubscriptionManager)
-            return { id: req.id, jsonrpc: '2.0', result }
-          }),
-        )
+        response = await Promise.all(parsed.data.map(safeHandleRequest))
+        response = response.filter((r) => r !== undefined)
       } else {
-        const result = await handler(parsed.data, emptySubscriptionManager)
-        response = { id: parsed.data.id, jsonrpc: '2.0', result }
+        response = await safeHandleRequest(parsed.data)
       }
 
-      respond(res, JSON.stringify(response))
+      if (response !== undefined) {
+        respond(res, JSON.stringify(response))
+      }
     } catch (err: any) {
       respond(
         res,
         JSON.stringify({
           jsonrpc: '2.0',
-          id: 1,
+          id: null,
           error: {
             message: err.message,
           },
@@ -139,7 +152,7 @@ export const createServer = async (handler: Handler, port: number) => {
   })
 
   for (let i = 0; i < 10; i++) {
-    if (port && (await portInUse(port + i))) {
+    if (port && (await portInUse(port + i, host))) {
       continue
     }
     const preferPort = port ? port + i : undefined
@@ -150,9 +163,9 @@ export const createServer = async (handler: Handler, port: number) => {
         reject(e)
       }
       server.once('error', onError)
-      server.listen(preferPort, () => {
+      server.listen(preferPort, host, () => {
         wss = new WebSocketServer({ server, maxPayload: 1024 * 1024 * 100 })
-        listenPort = (server.address() as AddressInfo).port
+        addressInfo = server.address() as AddressInfo
         server.removeListener('error', onError)
         resolve()
       })
@@ -160,7 +173,7 @@ export const createServer = async (handler: Handler, port: number) => {
     break
   }
 
-  if (!wss || !listenPort) {
+  if (!wss || !addressInfo) {
     throw new Error(`Failed to create WebsocketServer at port ${port}`)
   }
 
@@ -224,7 +237,7 @@ export const createServer = async (handler: Handler, port: number) => {
           result: resp ?? null,
         }
       } catch (e) {
-        wsLogger.info('Error handling request: %o', (e as Error).stack)
+        wsLogger.error('Error handling request: %o', (e as Error).stack)
         return {
           id: req.id,
           jsonrpc: '2.0',
@@ -277,7 +290,8 @@ export const createServer = async (handler: Handler, port: number) => {
   })
 
   return {
-    port: listenPort,
+    addr: `${addressInfo.family === 'IPv6' ? `[${addressInfo.address}]` : addressInfo.address}:${addressInfo.port}`,
+    port: addressInfo.port,
     close: async () => {
       server.close()
       server.closeAllConnections()

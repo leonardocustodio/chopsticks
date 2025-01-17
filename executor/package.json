@@ -1,7 +1,7 @@
 {
 	"name": "@acala-network/chopsticks-executor",
 	"description": "Chopsticks executor",
-	"version": "0.13.1",
+	"version": "1.0.2-2",
 	"license": "Apache-2.0",
 	"type": "module",
 	"repository": {
@@ -14,12 +14,12 @@
 		"build": "yarn wasm && ./package.sh"
 	},
 	"dependencies": {
-		"@polkadot/util": "^12.6.2",
-		"@polkadot/wasm-util": "^7.3.2"
+		"@polkadot/util": "^13.2",
+		"@polkadot/wasm-util": "^7.4"
 	},
 	"devDependencies": {
-		"@swc/cli": "0.4.0",
-		"@swc/core": "^1.6.7",
+		"@swc/cli": "0.5.2",
+		"@swc/core": "^1.10.1",
 		"fflate": "^0.8.2"
 	},
 	"files": [

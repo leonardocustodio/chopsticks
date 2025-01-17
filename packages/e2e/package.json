@@ -4,17 +4,19 @@
 	"license": "Apache-2.0",
 	"private": true,
 	"type": "module",
-	"scripts": {
-		"sidecar": "sh ./scripts/sidecar-chopsticks.sh"
-	},
 	"engines": {
 		"node": ">=v18"
 	},
 	"devDependencies": {
 		"@acala-network/chopsticks": "workspace:*",
 		"@acala-network/chopsticks-testing": "workspace:*",
-		"@polkadot/api": "^12.1.1",
-		"typescript": "^5.5.3",
-		"vitest": "^1.4.0"
+		"@polkadot-api/observable-client": "^0.7.0",
+		"@polkadot-api/substrate-client": "^0.3.0",
+		"@polkadot-api/ws-provider": "^0.3.6",
+		"@polkadot/api": "^15.0",
+		"polkadot-api": "^1.8.1",
+		"rxjs": "^7.8.1",
+		"typescript": "^5.7.2",
+		"vitest": "^2.1.8"
 	}
 }

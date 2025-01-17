@@ -8,6 +8,10 @@
 
 Create parallel reality of your Substrate network.
 
+## Introduction
+
+Chopsticks provides a developer-friendly method of locally forking existing Substrate based chains. It allows for the replaying of blocks to easily examine how extrinsics effect state, the forking of multiple blocks for XCM testing, and more. This allows developers to test and experiment with their own custom blockchain configurations in a local development environment, without the need to deploy a live network. Chopsticks aims to simplify the process of building blockchain applications on Substrate and make it accessible to a wider range of developers.
+
 ## Quick Start
 
 Fork Acala mainnet: `npx @acala-network/chopsticks@latest --endpoint=wss://acala-rpc-2.aca-api.network/ws`
@@ -182,6 +186,120 @@ return {
 }
 ```
 
+## Testing with @acala-network/chopsticks-testing
+
+The `@acala-network/chopsticks-testing` package provides powerful utilities for testing blockchain data, making it easier to write and maintain tests for your Substrate-based chain. It offers features like data redaction, event filtering, snapshot testing, and XCM message checking.
+
+### Installation
+
+```bash
+npm install --save-dev @acala-network/chopsticks-testing
+```
+
+### Basic Usage
+
+```typescript
+import { withExpect, setupContext } from '@acala-network/chopsticks-testing';
+import { expect } from 'vitest'; // or jest, or other test runners
+
+// Create testing utilities with your test runner's expect function
+const { check, checkEvents, checkSystemEvents, checkUmp, checkHrmp } = withExpect(expect);
+
+describe('My Chain Tests', () => {
+  it('should process events correctly', async () => {
+	const network = setupContext({ endpoint: 'wss://polkadot-rpc.dwellir.com' });
+    // Check and redact system events
+    await checkSystemEvents(network)
+      .redact({ number: 2, hash: true })
+      .toMatchSnapshot('system events');
+
+    // Filter specific events
+    await checkSystemEvents(network, 'balances', { section: 'system', method: 'ExtrinsicSuccess' })
+      .toMatchSnapshot('filtered events');
+  });
+});
+```
+
+### Data Redaction
+
+The testing package provides powerful redaction capabilities to make your tests more stable and focused on what matters:
+
+```typescript
+await check(someData)
+  .redact({
+    number: 2,           // Redact numbers with 2 decimal precision
+    hash: true,          // Redact 32-byte hex values
+    hex: true,           // Redact any hex values
+    address: true,       // Redact base58 addresses
+    redactKeys: /hash/,  // Redact values of keys matching regex
+    removeKeys: /time/   // Remove keys matching regex entirely
+  })
+  .toMatchSnapshot('redacted data');
+```
+
+### Event Filtering
+
+Filter and check specific blockchain events:
+
+```typescript
+// Check all balances events
+await checkSystemEvents(api, 'balances')
+  .toMatchSnapshot('balances events');
+
+// Check specific event type
+await checkSystemEvents(api, { section: 'system', method: 'ExtrinsicSuccess' })
+  .toMatchSnapshot('successful extrinsics');
+
+// Multiple filters
+await checkSystemEvents(api,
+  'balances',
+  { section: 'system', method: 'ExtrinsicSuccess' }
+)
+.toMatchSnapshot('filtered events');
+```
+
+### XCM Testing
+
+Test XCM (Cross-Chain Message) functionality:
+
+```typescript
+// Check UMP (Upward Message Passing) messages
+await checkUmp(api)
+  .redact()
+  .toMatchSnapshot('upward messages');
+
+// Check HRMP (Horizontal Relay-routed Message Passing) messages
+await checkHrmp(api)
+  .redact()
+  .toMatchSnapshot('horizontal messages');
+```
+
+### Data Format Conversion
+
+Convert data to different formats for testing:
+
+```typescript
+// Convert to human-readable format
+await check(data).toHuman().toMatchSnapshot('human readable');
+
+// Convert to hex format
+await check(data).toHex().toMatchSnapshot('hex format');
+
+// Convert to JSON format (default)
+await check(data).toJson().toMatchSnapshot('json format');
+```
+
+### Custom Transformations
+
+Apply custom transformations to your data:
+
+```typescript
+await check(data)
+  .map(value => value.filter(item => item.amount > 1000))
+  .redact()
+  .toMatchSnapshot('filtered and redacted');
+```
+
 ## Testing big migrations
 
 When testing migrations with lots of keys, you may want to fetch and cache some storages.
@@ -224,3 +342,30 @@ Please note that for both ways, fetched storages will be saved in the sqlite fil
 ## Try-Runtime CLI
 
 Documentation can be found [here](packages/chopsticks/src/plugins/try-runtime/README.md)
+
+## FAQ
+
+### What is mocked? What are things that could work with chopsticks, but still fail in production?
+
+Generally, anything that involves something more than onchain STF `new_state = f(old_state)` are not guaranteed to work in production.
+In practice, here is an incomplete list that I can think of:
+
+- mocked tx pool
+- no real block finalization
+- mocked inherents
+- simulated XCM channels
+
+### How to change a pallet constant in chopsticks?
+
+You cannot change runtime constants in chopsticks, you have to edit and build a new runtime, and use `wasm-override` with the new wasm.
+
+### Storage override of value type `()`
+
+You can use `0x` for empty values, for example:
+
+```yaml
+Whitelist:
+    WhitelistedCall:
+      - - - '0xe284be84dcfaf714ef2b7717b54914632406f2c17d8203d3268e4c4ca68fa144'
+        - 0x
+```

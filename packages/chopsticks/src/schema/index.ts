@@ -1,18 +1,24 @@
-import { BuildBlockMode, defaultLogger, genesisSchema, isUrl } from '@acala-network/chopsticks-core'
-import { HexString } from '@polkadot/util/types'
-import { Options } from 'yargs'
-import { ZodNativeEnum, ZodRawShape, ZodTypeAny, z } from 'zod'
-import { basename, extname } from 'node:path'
 import { readFileSync } from 'node:fs'
-import _ from 'lodash'
+import { basename, extname } from 'node:path'
+import { BuildBlockMode, defaultLogger, genesisSchema, isUrl } from '@acala-network/chopsticks-core'
+import type { HexString } from '@polkadot/util/types'
 import axios from 'axios'
 import yaml from 'js-yaml'
+import _ from 'lodash'
+import type { Options } from 'yargs'
+import { ZodNativeEnum, type ZodRawShape, type ZodTypeAny, z } from 'zod'
 
 export const zHex = z.custom<HexString>((val: any) => /^0x\w+$/.test(val))
 export const zHash = z.string().length(66).and(zHex)
 
 export const configSchema = z.object({
-  port: z.number({ description: 'Port to listen on' }).default(8000),
+  addr: z.union([z.literal('localhost'), z.string().ip()]).optional(),
+  host: z
+    .union([z.literal('localhost'), z.string().ip()], {
+      description: 'Server listening interface',
+    })
+    .optional(),
+  port: z.number({ description: 'Server listening port' }).default(8000),
   endpoint: z.union([z.string(), z.array(z.string())], { description: 'Endpoint to connect to' }).optional(),
   block: z
     .union(
@@ -41,7 +47,13 @@ export const configSchema = z.object({
   'wasm-override': z.string({ description: 'Path to wasm override' }).optional(),
   genesis: z
     .union([z.string(), genesisSchema], {
-      description: 'URL to genesis config file. NOTE: Only parachains with AURA consensus are supported!',
+      description:
+        'Alias to `chain-spec`. URL to chain spec file. NOTE: Only parachains with AURA consensus are supported!',
+    })
+    .optional(),
+  'chain-spec': z
+    .union([z.string(), genesisSchema], {
+      description: 'URL to chain spec file. NOTE: Only parachains with AURA consensus are supported!',
     })
     .optional(),
   timestamp: z.number().optional(),
